@@ -8,8 +8,8 @@
 | Backend | Node.js + TypeScript + NestJS |
 | ORM | Prisma |
 | Database | PostgreSQL 17 |
-| Môi trường local | Docker Desktop + Docker Compose |
-| Công cụ quản lý database | DBeaver Community hoặc pgAdmin |
+| Môi trường local | PostgreSQL 17 cài trực tiếp trên Windows, chạy bằng Windows Service |
+| Công cụ quản lý database | pgAdmin (khuyến nghị) hoặc DBeaver Community |
 | Kiểu API | REST API, base URL `/api/v1` |
 
 ## 2. Kiến trúc tổng quát
@@ -45,7 +45,6 @@ quan_ly_hoc_sinh/
 │       ├── schema.prisma
 │       ├── migrations/
 │       └── seed.ts
-├── compose.yaml
 └── tai_lieu_he_thong/
 ```
 
@@ -67,8 +66,18 @@ Thông số kết nối:
 
 ## 6. Quy trình khởi tạo dự kiến
 
+1. Cài PostgreSQL 17 trực tiếp trên Windows bằng bộ cài chính thức.
+2. Đảm bảo dịch vụ PostgreSQL đang chạy và lắng nghe tại `localhost:5432`.
+3. Dùng pgAdmin hoặc `psql` để tạo user và database local:
+
+```sql
+CREATE USER qlhs_user WITH PASSWORD 'change_me_local';
+CREATE DATABASE quan_ly_hoc_sinh OWNER qlhs_user;
+```
+
+4. Tạo file `backend/.env` từ `backend/.env.example`, sau đó chạy Prisma:
+
 ```powershell
-docker compose up -d
 cd backend
 npx prisma migrate dev --name init
 npx prisma db seed
@@ -77,12 +86,13 @@ npx prisma studio
 
 Database phải được tạo và cập nhật bằng Prisma migration, không chỉnh sửa cấu trúc thủ công trong DBeaver hoặc pgAdmin.
 
+Docker Desktop và Docker Compose không phải là yêu cầu của môi trường local. File `compose.yaml`, nếu còn được giữ trong repository, chỉ là phương án tùy chọn cho máy có hỗ trợ Docker và không thuộc quy trình local đã chốt.
+
 ## 7. Các bước triển khai tiếp theo
 
-1. Tạo PostgreSQL local bằng Docker Compose.
+1. Cài PostgreSQL 17 trực tiếp trên Windows và tạo database local bằng pgAdmin hoặc `psql`.
 2. Khởi tạo backend NestJS và cấu hình Prisma.
 3. Chuyển ERD hiện có thành `schema.prisma`.
 4. Tạo migration đầu tiên và dữ liệu seed.
 5. Xây dựng API theo tài liệu `/api/v1`.
 6. Khởi tạo frontend React và tích hợp với backend.
-
