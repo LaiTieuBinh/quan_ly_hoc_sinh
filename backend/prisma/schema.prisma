@@ -7,16 +7,69 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum VaiTro { QUAN_TRI_VIEN NHAN_VIEN GIAO_VIEN HOC_SINH }
-enum TrangThaiTaiKhoan { HOAT_DONG BI_KHOA }
-enum CapDo { N5 N4 N3 N2 N1 }
-enum TrangThaiHocSinh { DANG_HOC BAO_LUU NGHI_HOC }
-enum TrangThaiChung { HOAT_DONG KHONG_AP_DUNG }
-enum TrangThaiDangKy { DANG_HOC DA_KET_THUC DA_HUY }
-enum TrangThaiDiemDanh { CO_MAT DI_MUON VANG_CO_PHEP VANG_KHONG_PHEP VE_SOM }
-enum TrangThaiBaiTap { NHAP DA_GIAO DONG_NOP }
-enum TrangThaiTaiLieu { AN HIEN_THI DA_XOA }
-enum TrangThaiHocPhi { CHUA_THU THU_MOT_PHAN DA_THU QUA_HAN }
+enum VaiTro {
+  QUAN_TRI_VIEN
+  NHAN_VIEN
+  GIAO_VIEN
+  HOC_SINH
+}
+
+enum TrangThaiTaiKhoan {
+  HOAT_DONG
+  BI_KHOA
+}
+
+enum CapDo {
+  N5
+  N4
+  N3
+  N2
+  N1
+}
+
+enum TrangThaiHocSinh {
+  DANG_HOC
+  BAO_LUU
+  NGHI_HOC
+}
+
+enum TrangThaiChung {
+  HOAT_DONG
+  KHONG_AP_DUNG
+}
+
+enum TrangThaiDangKy {
+  DANG_HOC
+  DA_KET_THUC
+  DA_HUY
+}
+
+enum TrangThaiDiemDanh {
+  CO_MAT
+  DI_MUON
+  VANG_CO_PHEP
+  VANG_KHONG_PHEP
+  VE_SOM
+}
+
+enum TrangThaiBaiTap {
+  NHAP
+  DA_GIAO
+  DONG_NOP
+}
+
+enum TrangThaiTaiLieu {
+  AN
+  HIEN_THI
+  DA_XOA
+}
+
+enum TrangThaiHocPhi {
+  CHUA_THU
+  THU_MOT_PHAN
+  DA_THU
+  QUA_HAN
+}
 
 model TaiKhoan {
   id BigInt @id @default(autoincrement())
