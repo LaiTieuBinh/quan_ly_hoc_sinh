@@ -29,7 +29,7 @@ export class HocSinhService {
     if (!exists) throw new NotFoundException('Không tìm thấy học sinh.');
     const item = await this.prisma.$transaction(async tx => {
       const updated = await tx.hocSinh.update({ where: { id: BigInt(id) }, data: { hoTen: dto.ho_ten, email: dto.email, soDienThoai: dto.so_dien_thoai, trangThai: dto.trang_thai, version: { increment: 1 } } });
-      await tx.nhatKyThaoTac.create({ data: { taiKhoanId: BigInt(actorId), hanhDong: 'CAP_NHAT', doiTuong: 'HOC_SINH', doiTuongId: id, duLieu: dto } });
+      await tx.nhatKyThaoTac.create({ data: { taiKhoanId: BigInt(actorId), hanhDong: 'CAP_NHAT', doiTuong: 'HOC_SINH', doiTuongId: id, duLieu: { ...dto } } });
       return updated;
     });
     return this.serialize(item);
@@ -38,4 +38,3 @@ export class HocSinhService {
     return { id: item.id.toString(), ma_hoc_sinh: item.maHocSinh, ho_ten: item.hoTen, cap_do_hien_tai: item.capDoHienTai, trang_thai: item.trangThai, email: item.email, so_dien_thoai: item.soDienThoai, version: item.version };
   }
 }
-
