@@ -88,8 +88,39 @@ model TaiKhoan {
   lichSuCapDoThucHiens LichSuCapDo[]     @relation("NguoiThucHienLichSuCapDo")
   diemDanhThucHiens    DiemDanh[]        @relation("NguoiThucHienDiemDanh")
   diemThucHiens        Diem[]            @relation("NguoiThucHienDiem")
+  phienDangNhaps       PhienDangNhap[]
+  nhatKyDangNhaps      NhatKyDangNhap[]
 
   @@map("tai_khoan")
+}
+
+model PhienDangNhap {
+  id               String    @id @db.Uuid
+  taiKhoanId        BigInt    @map("tai_khoan_id")
+  refreshTokenHash String    @map("refresh_token_hash") @db.Char(64)
+  hetHanLuc         DateTime  @map("het_han_luc")
+  thuHoiLuc         DateTime? @map("thu_hoi_luc")
+  diaChiIp          String?   @map("dia_chi_ip") @db.VarChar(64)
+  userAgent         String?   @map("user_agent") @db.VarChar(500)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  taiKhoan          TaiKhoan  @relation(fields: [taiKhoanId], references: [id])
+  @@index([taiKhoanId, thuHoiLuc])
+  @@index([hetHanLuc])
+  @@map("phien_dang_nhap")
+}
+
+model NhatKyDangNhap {
+  id          BigInt    @id @default(autoincrement())
+  taiKhoanId  BigInt?   @map("tai_khoan_id")
+  tenDangNhap String    @map("ten_dang_nhap") @db.VarChar(100)
+  thanhCong   Boolean   @map("thanh_cong")
+  diaChiIp    String?   @map("dia_chi_ip") @db.VarChar(64)
+  userAgent   String?   @map("user_agent") @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  taiKhoan    TaiKhoan? @relation(fields: [taiKhoanId], references: [id])
+  @@index([tenDangNhap, createdAt])
+  @@index([diaChiIp, createdAt])
+  @@map("nhat_ky_dang_nhap")
 }
 
 model HocSinh {

@@ -1,0 +1,13 @@
+import { useEffect, useState } from 'react';
+import { Plus, Search } from 'lucide-react';
+import { StudentModal } from '../../components/students/StudentModal';
+import { api } from '../../services/api';
+import type { Student } from '../../types';
+
+export function StudentsPage() {
+  const [students, setStudents] = useState<Student[]>([]); const [query, setQuery] = useState(''); const [loading, setLoading] = useState(true); const [modal, setModal] = useState(false); const [editing, setEditing] = useState<Student | null>(null); const [error, setError] = useState('');
+  const load = (search = query) => { setLoading(true); api.students(search).then((result) => setStudents(result.data)).catch((reason) => setError(reason instanceof Error ? reason.message : 'Lỗi')).finally(() => setLoading(false)); };
+  useEffect(() => { load(''); }, []);
+
+  return <><div className="page-heading compact"><div><span className="eyebrow ink">QUẢN LÝ HỌC VỤ</span><h1>Danh sách học sinh</h1><p>Theo dõi hồ sơ, trạng thái và lộ trình JLPT.</p></div><button className="primary small" onClick={() => { setEditing(null); setModal(true); }}><Plus size={18} /> Thêm học sinh</button></div><section className="panel table-panel"><form className="toolbar" onSubmit={(event) => { event.preventDefault(); load(); }}><div className="search"><Search size={18} /><input placeholder="Tìm theo mã hoặc họ tên…" value={query} onChange={(event) => setQuery(event.target.value)} /></div><button className="outline" type="submit">Tìm kiếm</button></form>{error && <div className="error">{error}</div>}<div className="table-wrap"><table><thead><tr><th>Học sinh</th><th>Liên hệ</th><th>Cấp độ</th><th>Trạng thái</th><th /></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="empty">Đang tải dữ liệu…</td></tr> : students.length === 0 ? <tr><td colSpan={5} className="empty">Không tìm thấy học sinh.</td></tr> : students.map((student) => <tr key={student.id}><td><div className="student-cell"><span>{student.ho_ten.split(' ').slice(-2).map((part) => part[0]).join('')}</span><div><strong>{student.ho_ten}</strong><small>{student.ma_hoc_sinh}</small></div></div></td><td><span>{student.email ?? '—'}</span><small className="block">{student.so_dien_thoai ?? ''}</small></td><td><b className={`level ${student.cap_do_hien_tai.toLowerCase()}`}>{student.cap_do_hien_tai}</b></td><td><b className={`status ${student.trang_thai === 'DANG_HOC' ? 'active' : ''}`}>{student.trang_thai.replaceAll('_', ' ')}</b></td><td><button className="text-button" onClick={() => { setEditing(student); setModal(true); }}>Chỉnh sửa</button></td></tr>)}</tbody></table></div></section>{modal && <StudentModal student={editing} onClose={() => setModal(false)} onSaved={() => { setModal(false); load(); }} />}</>;
+}
