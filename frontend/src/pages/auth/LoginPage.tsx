@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { ChevronRight, Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import luffyBrandIcon from '../../assets/images/luffy-brand-icon.png';
 
 export function LoginPage() {
   const [username, setUsername] = useState('');
@@ -43,7 +42,7 @@ export function LoginPage() {
   return <main className="login-page">
     <section className="login-panel">
       <form className="login-card" onSubmit={submit} noValidate>
-        <div className="login-brand brand"><span className="brand-mark luffy-brand-mark"><img src={luffyBrandIcon} alt="Luffy" /></span><span>Tokuda Academy</span></div>
+        <div className="login-brand brand"><span className="brand-mark age-restriction-mark" aria-label="Dành cho người từ 18 tuổi">18+</span><span>Tokuda 大学</span></div>
         <h2>Đăng nhập</h2>
         <label htmlFor="username">Tên đăng nhập
           <div className={`login-input ${fieldErrors.username ? 'invalid' : ''}`}><UserRound size={19} /><input id="username" autoComplete="username" placeholder="Nhập tên đăng nhập" value={username} onChange={(event) => { setUsername(event.target.value); setFieldErrors((value) => ({ ...value, username: undefined })); }} autoFocus aria-invalid={Boolean(fieldErrors.username)} /></div>
