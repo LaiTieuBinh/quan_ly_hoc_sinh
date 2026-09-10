@@ -18,6 +18,9 @@ export type Student = {
   trang_thai: string;
   email: string | null;
   so_dien_thoai: string | null;
+  gioi_tinh?: string | null;
+  ngay_sinh?: string | null;
+  dia_chi?: string | null;
   version: number;
 };
 
