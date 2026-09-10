@@ -456,5 +456,7 @@ model NhatKyThaoTac {
   taiKhoan   TaiKhoan @relation(fields: [taiKhoanId], references: [id])
 
   @@index([doiTuong, doiTuongId])
+  @@index([taiKhoanId, hanhDong, createdAt], map: "nhat_ky_thao_tac_reset_actor_idx")
+  @@index([doiTuong, doiTuongId, hanhDong, createdAt], map: "nhat_ky_thao_tac_reset_target_idx")
   @@map("nhat_ky_thao_tac")
 }

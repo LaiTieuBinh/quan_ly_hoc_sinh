@@ -1,14 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Prisma, TrangThaiTaiKhoan } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuthRepository {
   constructor(private readonly prisma: PrismaService) {}
-  findAccount(username: string) { return this.prisma.taiKhoan.findUnique({ where: { tenDangNhap: username }, select: { id: true, tenDangNhap: true, matKhauMaHoa: true, vaiTro: true, trangThai: true } }); }
+  findAccount(username: string) { return this.prisma.taiKhoan.findFirst({ where: { tenDangNhap: { equals: username.trim(), mode: 'insensitive' } }, select: { id: true, tenDangNhap: true, matKhauMaHoa: true, vaiTro: true, trangThai: true } }); }
   findProfile(accountId: bigint) { return this.prisma.taiKhoan.findUnique({ where: { id: accountId }, select: { id: true, tenDangNhap: true, vaiTro: true, trangThai: true, hocSinh: { select: { id: true, hoTen: true } }, giaoVien: { select: { id: true, hoTen: true } } } }); }
-  createSession(data: { id: string; accountId: bigint; refreshHash: string; expiresAt: Date; ip?: string; userAgent?: string }) { return this.prisma.phienDangNhap.create({ data: { id: data.id, taiKhoanId: data.accountId, refreshTokenHash: data.refreshHash, hetHanLuc: data.expiresAt, diaChiIp: data.ip, userAgent: data.userAgent } }); }
-  findActiveSession(id: string) { return this.prisma.phienDangNhap.findFirst({ where: { id, thuHoiLuc: null, hetHanLuc: { gt: new Date() }, taiKhoan: { trangThai: TrangThaiTaiKhoan.HOAT_DONG } }, select: { id: true, taiKhoanId: true, refreshTokenHash: true, hetHanLuc: true } }); }
+  createSession(data: { id: string; accountId: bigint; passwordHash: string; refreshHash: string; expiresAt: Date; ip?: string; userAgent?: string }) {
+    return this.prisma.$transaction(async tx => {
+      // Serialize with password/status updates, so a password verified before a reset
+      // cannot create a new session after the reset revoked existing sessions.
+      await tx.$queryRaw`SELECT id FROM tai_khoan WHERE id = ${data.accountId} FOR UPDATE`;
+      const account = await tx.taiKhoan.findUnique({ where: { id: data.accountId }, select: { trangThai: true, matKhauMaHoa: true } });
+      if (!account || account.trangThai !== 'HOAT_DONG' || account.matKhauMaHoa !== data.passwordHash) throw new UnauthorizedException({ code: 'AUTH_INVALID_CREDENTIALS', message: 'Thông tin đăng nhập không hợp lệ.' });
+      return tx.phienDangNhap.create({ data: { id: data.id, taiKhoanId: data.accountId, refreshTokenHash: data.refreshHash, hetHanLuc: data.expiresAt, diaChiIp: data.ip, userAgent: data.userAgent } });
+    });
+  }
+  findActiveSession(id: string) { return this.prisma.phienDangNhap.findFirst({ where: { id, thuHoiLuc: null, hetHanLuc: { gt: new Date() }, taiKhoan: { trangThai: TrangThaiTaiKhoan.HOAT_DONG } }, select: { id: true, taiKhoanId: true, refreshTokenHash: true, hetHanLuc: true, taiKhoan: { select: { vaiTro: true, tenDangNhap: true } } } }); }
   rotateSession(id: string, oldHash: string, newHash: string, expiresAt: Date) { return this.prisma.phienDangNhap.updateMany({ where: { id, refreshTokenHash: oldHash, thuHoiLuc: null, hetHanLuc: { gt: new Date() } }, data: { refreshTokenHash: newHash, hetHanLuc: expiresAt } }); }
   revokeSession(id: string) { return this.prisma.phienDangNhap.updateMany({ where: { id, thuHoiLuc: null }, data: { thuHoiLuc: new Date() } }); }
   revokeAllSessions(accountId: bigint) { return this.prisma.phienDangNhap.updateMany({ where: { taiKhoanId: accountId, thuHoiLuc: null }, data: { thuHoiLuc: new Date() } }); }
