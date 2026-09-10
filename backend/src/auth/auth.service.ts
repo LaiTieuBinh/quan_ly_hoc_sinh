@@ -22,7 +22,7 @@ export class AuthService {
     const refreshSeconds = rememberMe ? AUTH_TTL.rememberRefreshSeconds : AUTH_TTL.refreshSeconds;
     const expiresAt = new Date(Date.now() + refreshSeconds * 1000);
     const tokens = await this.issueTokens(account.id, account.vaiTro, sessionId, refreshSeconds);
-    await this.repository.createSession({ id: sessionId, accountId: account.id, refreshHash: this.hash(tokens.refreshToken), expiresAt, ...context });
+    await this.repository.createSession({ id: sessionId, accountId: account.id, passwordHash: account.matKhauMaHoa, refreshHash: this.hash(tokens.refreshToken), expiresAt, ...context });
     await this.repository.logLogin({ accountId: account.id, username, success: true, ...context });
     return { data: { tai_khoan_id: account.id.toString(), ten_dang_nhap: account.tenDangNhap, vai_tro: account.vaiTro, phien: { het_han_luc: expiresAt.toISOString(), thoi_luong_phut: Math.floor(refreshSeconds / 60) } }, tokens, refreshSeconds };
   }
@@ -41,7 +41,7 @@ export class AuthService {
     const session = await this.repository.findActiveSession(payload.sid);
     if (!session || session.taiKhoanId.toString() !== payload.sub || session.refreshTokenHash !== this.hash(refreshToken)) return this.sessionExpired();
     const remainingSeconds = Math.max(1, Math.floor((session.hetHanLuc.getTime() - Date.now()) / 1000));
-    const tokens = await this.issueTokens(session.taiKhoanId, payload.role, session.id, remainingSeconds);
+    const tokens = await this.issueTokens(session.taiKhoanId, session.taiKhoan.vaiTro, session.id, remainingSeconds);
     const rotated = await this.repository.rotateSession(session.id, session.refreshTokenHash, this.hash(tokens.refreshToken), session.hetHanLuc);
     if (rotated.count !== 1) return this.sessionExpired();
     return { data: { phien: { het_han_luc: session.hetHanLuc.toISOString() } }, tokens, refreshSeconds: remainingSeconds };
