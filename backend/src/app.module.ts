@@ -4,7 +4,8 @@ import { AuthModule } from './auth/auth.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HocSinhModule } from './hoc-sinh/hoc-sinh.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AccountModule } from './tai-khoan/account.module';
 
-@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, DashboardModule, HocSinhModule] })
+@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, DashboardModule, HocSinhModule, AccountModule] })
 export class AppModule {}
 
