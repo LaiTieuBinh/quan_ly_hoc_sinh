@@ -36,7 +36,11 @@ export class AccountService {
     return this.prisma.$transaction(async tx => {
       const total = await tx.taiKhoan.count({ where });
       const rows = await tx.taiKhoan.findMany({ where, select: safeSelect, skip: (query.page - 1) * query.page_size, take: query.page_size, orderBy: [{ [sortKey]: query.sort.startsWith('-') ? 'desc' : 'asc' }, { id: 'asc' }] });
-      return { data: rows.map(serialize), meta: meta(total, { page: query.page, page_size: query.page_size }) };
+      // Summary cards describe all accounts, independent of table filters/paging.
+      const groups = await tx.taiKhoan.groupBy({ by: ['vaiTro'], _count: { _all: true } });
+      const roleCounts: Record<VaiTro, number> = { QUAN_TRI_VIEN: 0, NHAN_VIEN: 0, GIAO_VIEN: 0, HOC_SINH: 0 };
+      for (const group of groups) roleCounts[group.vaiTro] = group._count._all;
+      return { data: rows.map(serialize), meta: meta(total, { page: query.page, page_size: query.page_size }), role_counts: roleCounts };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 
