@@ -45,3 +45,5 @@
 @media(max-width:740px){.acc-table-caption{flex-wrap:wrap}.acc-caption-actions{display:contents}.acc-caption-actions>label{order:3;width:100%;justify-content:flex-end}.acc-caption-actions>.acc-button{margin-left:auto}}
 
 .acc-table-summary{display:grid;gap:6px}.acc-table-summary>span:last-child{font-size:11px;color:#c4b5cf}.acc-pagination{justify-content:flex-end}
+
+.acc-action-menu.acc-floating-menu{position:fixed;right:auto;bottom:auto;z-index:60;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);overflow-y:auto}.acc-floating-menu button{cursor:pointer}.acc-floating-menu button:focus-visible{outline:2px solid #f88bab;outline-offset:-2px}

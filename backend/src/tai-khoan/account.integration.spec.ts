@@ -9,6 +9,7 @@ import * as argon2 from 'argon2';
 import { AppModule } from '../app.module';
 import { ApiExceptionFilter } from '../shared/api-exception.filter';
 import { AUTH_COOKIE } from '../auth/auth.constants';
+import { frontendClient } from './frontend-client.test-helper';
 
 // Opt in with a local PostgreSQL URL. Every run creates and drops its own schema.
 const databaseUrl = process.env.ACCOUNT_TEST_DATABASE_URL;
@@ -87,8 +88,18 @@ integration('Account API with PostgreSQL', () => {
     const response = await call('GET', '/tai-khoan?q=%20MEMBER%20&vai_tro=NHAN_VIEN&page=2');
     expect(response.status).toBe(200); expect(response.body.data).toHaveLength(3);
     expect(response.body.meta).toEqual({ page: 2, page_size: 20, total: 23, total_pages: 2 });
+    expect(response.body.role_counts).toEqual({ QUAN_TRI_VIEN: 1, NHAN_VIEN: 24, GIAO_VIEN: 0, HOC_SINH: 0 });
     expect(JSON.stringify(response.body)).not.toMatch(/mat_khau|argon2|token/i);
     expect((await call('GET', '/tai-khoan?page_size=101')).body.error.code).toBe('INVALID_QUERY');
+  });
+
+  it('returns global role counts for empty filters and updates counts after role changes', async () => {
+    const initial = await call('GET', '/tai-khoan?vai_tro=HOC_SINH&q=missing&trang_thai=KHOA');
+    expect(initial.body.data).toEqual([]);
+    expect(initial.body.role_counts).toEqual({ QUAN_TRI_VIEN: 1, NHAN_VIEN: 1, GIAO_VIEN: 0, HOC_SINH: 0 });
+    expect((await call('PATCH', `/tai-khoan/${staff.id}`, { vai_tro: 'HOC_SINH', hoc_sinh_id: studentId, giao_vien_id: null })).status).toBe(200);
+    const updated = await call('GET', '/tai-khoan');
+    expect(updated.body.role_counts).toEqual({ QUAN_TRI_VIEN: 1, NHAN_VIEN: 0, GIAO_VIEN: 0, HOC_SINH: 1 });
   });
   it('creates safe accounts, hashes passwords and rejects normalized duplicates', async () => {
     const input = { ten_dang_nhap: '  Teacher.New  ', mat_khau: secret, vai_tro: 'GIAO_VIEN', giao_vien_id: teacherId };
@@ -158,5 +169,49 @@ integration('Account API with PostgreSQL', () => {
     expect((await call('GET', '/ho-so/hoc-sinh-kha-dung?include_inactive=true')).body.data).toHaveLength(1);
     expect((await call('GET', '/tai-khoan/99999999')).body.error.code).toBe('ACCOUNT_NOT_FOUND');
     expect((await call('PATCH', `/tai-khoan/${staff.id}`, { mat_khau: secret })).status).toBe(422);
+  });
+
+  it('runs real FE services through login, CSRF, create/edit, profiles, lock/reset and persistence', async () => {
+    const client = frontendClient(base);
+    await client.authService.login({ username: 'admin', password: secret, rememberMe: false });
+    const filters = { q: '', vai_tro: '', trang_thai: '', page: 1, sort: '-updated_at' };
+    expect((await client.accountApi.list(filters)).meta.total).toBe(2);
+    expect((await client.accountApi.profiles('GIAO_VIEN', undefined, 'GV001'))[0]).toMatchObject({ id: teacherId, ten: 'Nguyễn Văn A' });
+    const input = { ten_dang_nhap: 'frontend.teacher', mat_khau: secret, vai_tro: 'GIAO_VIEN', trang_thai: 'HOAT_DONG', giao_vien_id: teacherId, hoc_sinh_id: null };
+    const { data } = await client.accountApi.save(undefined, input);
+    expect(client.cookies.has(AUTH_COOKIE.csrf)).toBe(true);
+    expect(await client.accountApi.detail(data.id)).toMatchObject({ ten_dang_nhap: input.ten_dang_nhap, ho_so_lien_ket: { id: teacherId } });
+    await expect(client.accountApi.save(undefined, input)).rejects.toMatchObject({ code: 'USERNAME_ALREADY_EXISTS', fields: { ten_dang_nhap: 'Tên đăng nhập đã tồn tại.' } });
+    const updated = await client.accountApi.save(data.id, { ten_dang_nhap: 'frontend.updated', vai_tro: 'NHAN_VIEN', trang_thai: 'HOAT_DONG', giao_vien_id: null, hoc_sinh_id: null });
+    expect(updated.data.ho_so_lien_ket).toBeNull();
+    expect((await client.accountApi.list({ ...filters, q: 'FRONTEND.UPDATED' })).meta.total).toBe(1);
+    const locked = await client.accountApi.status(updated.data);
+    expect(locked.data.trang_thai).toBe('KHOA');
+    await client.accountApi.status(locked.data);
+    await expect(client.accountApi.reset(data.id, 'short', 'short')).rejects.toMatchObject({ status: 422, fields: { mat_khau_moi: 'Mật khẩu phải có từ 12 đến 128 ký tự.' } });
+    const next = 'New-frontend-password-2026';
+    await client.accountApi.reset(data.id, next, next);
+    const secondClient = frontendClient(base);
+    await secondClient.authService.login({ username: 'frontend.updated', password: next, rememberMe: false });
+    expect((await secondClient.authService.me()).vai_tro).toBe('NHAN_VIEN');
+    await expect(secondClient.accountApi.list(filters)).rejects.toMatchObject({ status: 403, code: 'ADMIN_REQUIRED' });
+    const stored = await db.taiKhoan.findUniqueOrThrow({ where: { id: BigInt(data.id) } });
+    expect(stored.tenDangNhap).toBe('frontend.updated');
+    expect(await argon2.verify(stored.matKhauMaHoa, next)).toBe(true);
+  });
+
+  it('refreshes an expired access cookie and notifies the FE when the session is revoked', async () => {
+    const client = frontendClient(base);
+    const profile = await client.authService.login({ username: 'admin', password: secret, rememberMe: false });
+    const decoded = jwt.decode(client.cookies.get(AUTH_COOKIE.access)!);
+    client.cookies.set(AUTH_COOKIE.access, jwt.sign({ sub: profile.tai_khoan_id, sid: decoded.sid, role: 'QUAN_TRI_VIEN', type: 'access' }, { expiresIn: -1 }));
+    const expired = jest.fn();
+    const unsubscribe = client.http.onSessionExpired(expired);
+    expect((await client.accountApi.detail(Number(admin.id))).ten_dang_nhap).toBe('admin');
+    expect(expired).not.toHaveBeenCalled();
+    await db.phienDangNhap.updateMany({ where: { taiKhoanId: admin.id }, data: { thuHoiLuc: new Date() } });
+    await expect(client.accountApi.detail(Number(admin.id))).rejects.toMatchObject({ status: 401 });
+    expect(expired).toHaveBeenCalledTimes(1);
+    unsubscribe();
   });
 });

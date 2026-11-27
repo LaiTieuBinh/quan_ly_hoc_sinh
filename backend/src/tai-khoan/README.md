@@ -51,4 +51,4 @@ Kiểm thử PostgreSQL được bật bằng biến `ACCOUNT_TEST_DATABASE_URL`
 
 Các test bao phủ quyền của cả bốn vai trò, phiên bị thu hồi, CSRF, tìm kiếm/phân trang, hash và dữ liệu an toàn, trùng tên, liên kết hồ sơ, hai yêu cầu tranh cùng hồ sơ, hai quản trị viên tự khóa đồng thời, đổi vai trò quản trị viên cuối cùng, mật khẩu/thu hồi phiên và rate limit.
 
-Phần này triển khai backend. Frontend tích hợp cần gửi CSRF cho thao tác ghi và áp dụng cùng chính sách mật khẩu.
+Frontend MH-03 đã tích hợp API thật, gửi CSRF cho thao tác ghi và áp dụng cùng chính sách mật khẩu. Suite tích hợp còn chạy các service FE thật qua HTTP với cookie để kiểm tra lưu dữ liệu và refresh/thu hồi phiên; không cần sửa dữ liệu database đang sử dụng.

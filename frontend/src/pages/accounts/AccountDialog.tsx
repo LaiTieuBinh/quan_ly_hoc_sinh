@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { KeyRound, ShieldCheck, X } from 'lucide-react';
 import { ApiError } from '../../services/http';
-import { accountApi, roles, sampleProfiles, type Account, type AccountInput, type Profile, type Role, type Status } from './accounts.data';
+import { accountApi, roles, type Account, type AccountInput, type Profile, type Role, type Status } from './accounts.data';
 
 export type DialogAction = { kind: 'create' } | { kind: 'edit' | 'status' | 'reset'; account: Account };
-export function AccountDialog({ action, demo, accounts, onClose, onSave }: { action: DialogAction; demo: boolean; accounts: Account[]; onClose: () => void; onSave: (input?: AccountInput, password?: string, confirmation?: string) => Promise<void> }) {
+export function AccountDialog({ action, onClose, onSave }: { action: DialogAction; onClose: () => void; onSave: (input?: AccountInput, password?: string, confirmation?: string) => Promise<void> }) {
   const account = 'account' in action ? action.account : undefined;
   const [username, setUsername] = useState(account?.ten_dang_nhap ?? '');
   const [role, setRole] = useState<Role>(account?.vai_tro ?? 'NHAN_VIEN');
@@ -36,11 +36,11 @@ export function AccountDialog({ action, demo, accounts, onClose, onSave }: { act
     let active = true;
     setProfileLoading(true); setProfileError('');
     const timer = window.setTimeout(() => {
-      const task = demo ? Promise.resolve(sampleProfiles.filter(p => p.loai === role && `${p.ma} ${p.ten}`.toLocaleLowerCase('vi').includes(profileQuery.toLocaleLowerCase('vi')) && !accounts.some(a => a.id !== account?.id && a.ho_so_lien_ket?.id === p.id && a.vai_tro === role))) : accountApi.profiles(role, account?.id, profileQuery);
+      const task = accountApi.profiles(role, account?.id, profileQuery);
       task.then(data => { if (active) setProfiles(data); }).catch(() => { if (active) setProfileError('Không thể tải hồ sơ. Vui lòng thử lại.'); }).finally(() => { if (active) setProfileLoading(false); });
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [role, profileQuery, demo, account?.id, accounts, needsProfile, formMode, retry]);
+  }, [role, profileQuery, account?.id, needsProfile, formMode, retry]);
 
   const title = action.kind === 'create' ? 'Tạo tài khoản' : action.kind === 'edit' ? 'Cập nhật tài khoản' : action.kind === 'reset' ? 'Đặt lại mật khẩu' : account?.trang_thai === 'HOAT_DONG' ? 'Khóa tài khoản' : 'Mở khóa tài khoản';
   const field = (key: string, label: string, children: ReactNode) => <label className="acc-field">{label}{children}{errors[key] && <span className="acc-field-error" role="alert">{errors[key]}</span>}</label>;
@@ -50,11 +50,12 @@ export function AccountDialog({ action, demo, accounts, onClose, onSave }: { act
     const next: Record<string, string> = {};
     if (formMode) {
       if (!username.trim()) next.ten_dang_nhap = 'Vui lòng nhập tên đăng nhập.';
-      if (demo && accounts.some(a => a.id !== account?.id && a.ten_dang_nhap.toLowerCase() === username.trim().toLowerCase())) next.ten_dang_nhap = 'Tên đăng nhập đã tồn tại.';
+      if (username.trim().length > 100) next.ten_dang_nhap = 'Tên đăng nhập tối đa 100 ký tự.';
       if (needsProfile && !profileId) next.profile = 'Vui lòng chọn hồ sơ tương ứng.';
       if (removesProfile && !unlinkConfirmed) next.unlink = 'Vui lòng xác nhận gỡ hồ sơ liên kết cũ.';
     }
     if ((action.kind === 'create' || action.kind === 'reset') && !password.trim()) next.mat_khau = 'Vui lòng nhập mật khẩu.';
+    else if ((action.kind === 'create' || action.kind === 'reset') && ([...password].length < 12 || [...password].length > 128)) next.mat_khau = 'Mật khẩu phải có từ 12 đến 128 ký tự.';
     if (action.kind === 'reset' && password !== confirmation) next.xac_nhan_mat_khau = 'Mật khẩu xác nhận không khớp.';
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -63,7 +64,7 @@ export function AccountDialog({ action, demo, accounts, onClose, onSave }: { act
       await onSave(formMode ? { ten_dang_nhap: username.trim(), vai_tro: role, trang_thai: status, giao_vien_id: role === 'GIAO_VIEN' ? profileId : null, hoc_sinh_id: role === 'HOC_SINH' ? profileId : null, ...(action.kind === 'create' ? { mat_khau: password } : {}) } : undefined, password, confirmation);
       setPassword(''); setConfirmation(''); onClose();
     } catch (error) {
-      const fields = error instanceof ApiError ? Object.fromEntries(Object.entries(error.fields).map(([key, value]) => [key === 'giao_vien_id' || key === 'hoc_sinh_id' ? 'profile' : key, Array.isArray(value) ? value.join(' ') : value])) : {};
+      const fields = error instanceof ApiError ? Object.fromEntries(Object.entries(error.fields).map(([key, value]) => [key === 'giao_vien_id' || key === 'hoc_sinh_id' ? 'profile' : key === 'mat_khau_moi' ? 'mat_khau' : key, value])) : {};
       setErrors({ ...fields, form: error instanceof Error ? error.message : 'Thao tác thất bại. Vui lòng thử lại.' });
     } finally { setBusy(false); }
   }
